@@ -1,0 +1,26 @@
+.git
+.gitignore
+.DS_Store
+
+# Secrets and local environment
+.env
+*.env
+backend/.env
+
+# Dependencies and build output
+node_modules
+dist
+build
+
+# Runtime/generated data
+storage
+backend/storage
+.playwright-cli
+*.log
+
+# Python artifacts
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache

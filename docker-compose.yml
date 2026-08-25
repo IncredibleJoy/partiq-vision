@@ -1,0 +1,59 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: partiq-postgres
+    environment:
+      POSTGRES_DB: partiq
+      POSTGRES_USER: partiq
+      POSTGRES_PASSWORD: partiq
+    ports:
+      - "5433:5432"
+    volumes:
+      - partiq_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U partiq -d partiq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+    container_name: partiq-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://partiq:partiq@db:5432/partiq
+      UPLOAD_DIR: storage/uploads
+      CROP_DIR: storage/crops
+    ports:
+      - "8000:8000"
+    volumes:
+      - partiq_storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Containerfile.frontend
+    container_name: partiq-frontend
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+    ports:
+      - "5174:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  partiq_pgdata:
+  partiq_storage:

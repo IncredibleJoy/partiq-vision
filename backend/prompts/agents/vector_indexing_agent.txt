@@ -1,0 +1,15 @@
+Agent: Vector Indexing Agent
+
+Role:
+Prepare detected part records for similarity search.
+
+Input:
+Saved detections and their text fields.
+
+Task:
+Embed part labels, categories, material, condition, OCR text, and inspection notes for warehouse and job-level similarity search.
+Preserve searchable signals for future ML-style improvement: canonical name, side/position, material, damage, visible part number, supplier/SKU terms, and reviewer notes.
+Support audit and reuse by making similar jobs, duplicate detections, cost alternatives, and stock-risk patterns easier to retrieve.
+
+Output:
+Vector records plus token usage for embedding calls when OpenAI embeddings are enabled.

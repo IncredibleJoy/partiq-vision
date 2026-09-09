@@ -1,20 +1,17 @@
 {
-  "name": "partiq-vision-dashboard",
+  "name": "partiq-vision",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@vitejs/plugin-react": "^5.0.0",
-    "vite": "^7.0.0",
-    "typescript": "^5.8.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "lucide-react": "^0.468.0"
-  },
-  "devDependencies": {}
+    "install:frontend": "npm --prefix frontend install",
+    "dev": "npm --prefix frontend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "app:build": "scripts/app-build.sh",
+    "app:up": "scripts/app-up.sh",
+    "app:restart": "scripts/app-restart.sh",
+    "app:status": "scripts/app-status.sh",
+    "app:down": "scripts/app-down.sh"
+  }
 }

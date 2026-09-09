@@ -996,6 +996,14 @@ def list_warehouse_parts(limit: int = 100, offset: int = 0) -> list[dict[str, An
         ).fetchall()
 
 
+def get_warehouse_part(sku: str) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT * FROM warehouse_parts WHERE sku = %s",
+            (sku,),
+        ).fetchone()
+
+
 def warehouse_summary() -> dict[str, Any]:
     with get_conn() as conn:
         totals = conn.execute(

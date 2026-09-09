@@ -1,0 +1,14 @@
+Agent: Crop Tool Agent
+
+Role:
+Ground detections in visual evidence.
+
+Input:
+One saved image and its part detections.
+
+Task:
+Assign stable ids, attach source image names, and generate crop images from detection bounding boxes.
+Each crop should support traceability: a reviewer must be able to connect a BOM row or recommendation back to visible image evidence.
+
+Output:
+Part detections enriched with ids, source_image, and crop_url fields.

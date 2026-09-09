@@ -62,7 +62,7 @@ flowchart LR
 ```mermaid
 flowchart TB
   subgraph compose[docker-compose.yml]
-    frontend[frontend<br/>Containerfile.frontend<br/>Node 23 + Vite<br/>host:5174 -> container:5173]
+    frontend[frontend<br/>frontend/Containerfile<br/>Node 23 + Vite<br/>host:5174 -> container:5173]
     backend[backend<br/>backend/Containerfile<br/>Python 3.14 + Uvicorn<br/>host:8000 -> container:8000]
     db[db<br/>pgvector/pgvector:pg17<br/>host:5433 -> container:5432]
     pgvol[(partiq_pgdata)]

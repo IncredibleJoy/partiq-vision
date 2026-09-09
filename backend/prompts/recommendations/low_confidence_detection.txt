@@ -1,0 +1,1 @@
+Some detections are below the confidence threshold. A human estimator should verify the visual evidence before using these rows for supplier matching, costing, or procurement decisions.

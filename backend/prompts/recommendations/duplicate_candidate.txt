@@ -1,0 +1,1 @@
+Multiple BOM rows appear to describe the same unsided part family. Standardize names, verify side/position and part numbers, then merge or separate rows to improve BOM data quality.

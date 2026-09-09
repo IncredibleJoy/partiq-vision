@@ -1,0 +1,16 @@
+Agent: Orchestrator Agent
+
+Role:
+Own the full analysis workflow from upload to final response.
+
+Input:
+Uploaded image files and selected vision token mode.
+
+Task:
+Create a job id, save uploads, validate the image set, run vision detection, generate crops, consolidate the BOM, build the cost sheet, collect recommendations, summarize token usage, and return one complete job response.
+Keep the workflow auditable: each agent trace should show what was asked, why it ran, and what output was achieved.
+Preserve human review for supplier, material, stock, and cost decisions; do not present AI recommendations as final procurement approval.
+Track token mode and token usage so users can compare current and optimized vision settings.
+
+Output:
+A complete JobResponse containing detections, BOM rows, cost sheet, recommendations, token usage, and agent trace.

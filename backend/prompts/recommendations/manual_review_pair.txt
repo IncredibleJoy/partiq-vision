@@ -1,0 +1,1 @@
+Only one side of a paired component appears in the BOM. Confirm whether the opposite side is unaffected, hidden, missing from detection, or should be added as a separate repair/cost item.

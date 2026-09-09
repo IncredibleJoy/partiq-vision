@@ -1,17 +1,17 @@
 from uuid import UUID
 
 from openai import OpenAI
-from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .agents import AgentContext, KnowledgeSearchAgent, OrchestratorAgent, ReflectionAgent
+from .agents import AgentContext, KnowledgeSearchAgent, OrchestratorAgent, ReflectionAgent, attach_bom_warehouse_recommendations
 from .bom import consolidate_bom
 from .costing import build_cost_sheet
 from .db import close_pool, run_migrations, start_pool
 from .images import ensure_storage
 from .repository import get_job, replace_recommendations, save_job, update_detection_labels, update_job_token_usage
-from .schemas import AgentTrace, JobResponse, RefineJobRequest, TokenUsageItem, TokenUsageSummary, WarehousePart, WarehouseSearchResult
+from .schemas import AgentTrace, CostSheet, CostSheetRequest, JobResponse, RefineJobRequest, TokenUsageItem, TokenUsageSummary, WarehouseMatchRequest, WarehouseMatchResponse, WarehousePart, WarehouseSearchResult
 from .vector_store import save_detection_vectors, search_parts
 from .warehouse import list_warehouse_parts, search_warehouse_parts, seed_warehouse, warehouse_summary
 from .config import settings
@@ -93,11 +93,12 @@ async def screener_socket(websocket: WebSocket) -> None:
 
 
 @app.post("/api/analyze", response_model=JobResponse)
-async def analyze(files: list[UploadFile] = File(...)) -> JobResponse:
+async def analyze(files: list[UploadFile] = File(...), vision_token_mode: str = Form("standard")) -> JobResponse:
     if not files:
         raise HTTPException(status_code=400, detail="Upload at least one image")
 
-    response = await OrchestratorAgent().run(files)
+    token_mode = "optimized" if vision_token_mode == "optimized" else "standard"
+    response = await OrchestratorAgent().run(files, token_mode)
     save_job(response)
     vector_usage = save_detection_vectors(response.job_id, response.detections)
     response.token_usage = append_token_usage(response.token_usage, vector_usage)
@@ -111,7 +112,7 @@ def read_job(job_id: UUID) -> JobResponse:
     if not record:
         raise HTTPException(status_code=404, detail="Job not found")
     detections = record["detections"]
-    bom = consolidate_bom(detections)
+    bom = attach_bom_warehouse_recommendations(consolidate_bom(detections), record["recommendations"])
     return JobResponse(
         job_id=str(record["job"]["id"]),
         model_mode=record["job"]["model_mode"],
@@ -136,8 +137,11 @@ def refine_job(job_id: UUID, request: RefineJobRequest) -> JobResponse:
     bom = consolidate_bom(detections)
     cost_sheet = build_cost_sheet(bom)
     ctx = AgentContext(job_id=str(job_id))
-    recommendations = KnowledgeSearchAgent().recommend_from_database(detections, ctx)
-    recommendations.extend(ReflectionAgent().verify(detections, ctx))
+    knowledge = KnowledgeSearchAgent()
+    recommendations = knowledge.recommend_from_database(detections, ctx)
+    recommendations.extend(knowledge.recommend_bom_alternatives(bom, ctx))
+    recommendations.extend(ReflectionAgent().verify(detections, ctx, bom, cost_sheet))
+    bom = attach_bom_warehouse_recommendations(bom, recommendations)
     replace_recommendations(job_id, recommendations)
     vector_usage = save_detection_vectors(str(job_id), detections)
     token_usage = append_token_usage(record["token_usage"], vector_usage)
@@ -162,6 +166,35 @@ def refine_job(job_id: UUID, request: RefineJobRequest) -> JobResponse:
             ),
             *ctx.traces,
         ],
+    )
+
+
+@app.post("/api/jobs/{job_id}/cost-sheet", response_model=CostSheet)
+def update_cost_sheet(job_id: UUID, request: CostSheetRequest) -> CostSheet:
+    record = get_job(job_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return build_cost_sheet([item for item in request.bom if item.included])
+
+
+@app.post("/api/jobs/{job_id}/warehouse-matches", response_model=WarehouseMatchResponse)
+def rerun_warehouse_matches(job_id: UUID, request: WarehouseMatchRequest) -> WarehouseMatchResponse:
+    record = get_job(job_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if request.strategy != "semantic_search":
+        raise HTTPException(status_code=400, detail="Unsupported warehouse matching strategy")
+
+    bom = attach_bom_warehouse_recommendations(
+        request.bom,
+        record["recommendations"],
+        strategy=request.strategy,
+        reset_selection=True,
+    )
+    return WarehouseMatchResponse(
+        strategy=request.strategy,
+        bom=bom,
+        cost_sheet=build_cost_sheet([item for item in bom if item.included]),
     )
 
 

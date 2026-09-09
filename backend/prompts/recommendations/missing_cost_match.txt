@@ -1,0 +1,1 @@
+No warehouse cost match was produced for this BOM row. Request supplier pricing or manual SKU mapping before finalizing cost, lead time, or procurement risk.

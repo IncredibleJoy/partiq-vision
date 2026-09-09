@@ -3,9 +3,13 @@ import json
 from pathlib import Path
 
 from openai import OpenAI, OpenAIError
+from pydantic import ValidationError
 
 from .config import settings
+from .prompts import load_prompt
 from .schemas import BoundingBox, ImageSetValidation, PartDetection, TokenUsageItem, VisionResult
+
+VisionTokenMode = str
 
 
 PART_SCHEMA = {
@@ -65,7 +69,6 @@ IMAGE_SET_SCHEMA = {
     },
     "required": ["is_automotive", "same_object", "uploaded_description", "validation_message"],
 }
-
 
 def _image_data_url(path: Path) -> str:
     mime = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
@@ -143,10 +146,28 @@ def _usage_item(step: str, model: str, purpose: str, usage: object | None = None
     )
 
 
-def validate_image_set(paths: list[Path]) -> tuple[ImageSetValidation, str, TokenUsageItem]:
+def _image_input(path: Path, detail: str | None) -> dict[str, str]:
+    item = {"type": "input_image", "image_url": _image_data_url(path)}
+    if detail:
+        item["detail"] = detail
+    return item
+
+
+def _normalized_token_mode(mode: str | None) -> VisionTokenMode:
+    return "optimized" if mode == "optimized" else "standard"
+
+
+def _vision_detail_for_mode(mode: VisionTokenMode) -> str | None:
+    return "low" if mode == "optimized" else None
+
+
+def validate_image_set(paths: list[Path], token_mode: str | None = None) -> tuple[ImageSetValidation, str, TokenUsageItem]:
+    mode = _normalized_token_mode(token_mode)
+    detail = _vision_detail_for_mode(mode)
     purpose = (
         "Pre-analysis upload validation: confirm images contain automotive parts and, for multi-image uploads, "
-        "confirm they are different views/details of the same vehicle or automotive object."
+        f"confirm they are different views/details of the same vehicle or automotive object. Token mode: {mode}; "
+        f"image detail: {detail or 'auto'}."
     )
     if not settings.openai_api_key:
         return (
@@ -162,13 +183,6 @@ def validate_image_set(paths: list[Path]) -> tuple[ImageSetValidation, str, Toke
 
     client = OpenAI(api_key=settings.openai_api_key)
     image_count = len(paths)
-    prompt = (
-        "Validate this upload for an automotive BOM analysis workflow. "
-        "If the image does not depict a vehicle or automotive part, set is_automotive=false and describe the visible object simply. "
-        "If multiple images are provided, they must be the same vehicle/object from different views or detail shots; "
-        "if they are different objects, set same_object=false. "
-        "Do not perform part detection here. Return a concise user-facing validation_message."
-    )
     try:
         response = client.responses.create(
             model=settings.vision_model,
@@ -176,9 +190,9 @@ def validate_image_set(paths: list[Path]) -> tuple[ImageSetValidation, str, Toke
                 {
                     "role": "user",
                     "content": [
-                        {"type": "input_text", "text": f"{prompt} Number of uploaded images: {image_count}."},
+                        {"type": "input_text", "text": f"{load_prompt('image_set_validation.txt')} Number of uploaded images: {image_count}."},
                         *[
-                            {"type": "input_image", "image_url": _image_data_url(path)}
+                            _image_input(path, detail)
                             for path in paths
                         ],
                     ],
@@ -195,7 +209,7 @@ def validate_image_set(paths: list[Path]) -> tuple[ImageSetValidation, str, Toke
         )
         usage = _usage_item("image_set_validation", settings.vision_model, purpose, response.usage)
         return ImageSetValidation.model_validate(json.loads(response.output_text)), "openai", usage
-    except OpenAIError:
+    except (OpenAIError, json.JSONDecodeError, ValidationError, ValueError):
         return (
             ImageSetValidation(
                 is_automotive=False,
@@ -212,23 +226,17 @@ def validate_image_set(paths: list[Path]) -> tuple[ImageSetValidation, str, Toke
         )
 
 
-def analyze_image(path: Path) -> tuple[VisionResult, str, TokenUsageItem]:
-    purpose = "Vision LLM part detection from uploaded vehicle image, including labels, material, condition, details, confidence, and bounding boxes."
+def analyze_image(path: Path, token_mode: str | None = None) -> tuple[VisionResult, str, TokenUsageItem]:
+    mode = _normalized_token_mode(token_mode)
+    detail = _vision_detail_for_mode(mode)
+    purpose = (
+        "Vision LLM part detection from uploaded vehicle image, including labels, material, condition, details, "
+        f"confidence, and bounding boxes. Token mode: {mode}; image detail: {detail or 'auto'}."
+    )
     if not settings.openai_api_key:
         return _mock_result(path.name), "demo", _usage_item("vision_detection", "demo-local", purpose)
 
     client = OpenAI(api_key=settings.openai_api_key)
-    prompt = (
-        "You are an automotive BOM vision analyst for collision and spare-part estimation. "
-        "Detect only automotive parts that are directly visible in the image. Do not infer hidden parts, "
-        "internal parts, fasteners, fluids, or consumables unless they are visibly present. "
-        "Use conservative standard vehicle-part names such as front bumper cover, grille, headlamp assembly, "
-        "hood panel, fender, wheel arch liner, radiator, condenser, sensor, harness, bracket, clip, screw, or washer. "
-        "If a region is uncertain, use a lower confidence and explain the uncertainty in minute_details. "
-        "Return part name, category, likely material, visible condition, visible part number or OCR text, "
-        "minute inspection details, confidence, and tight normalized bounding box. "
-        "The bounding box must surround the visible part only, not the entire vehicle."
-    )
     try:
         response = client.responses.create(
             model=settings.vision_model,
@@ -236,8 +244,8 @@ def analyze_image(path: Path) -> tuple[VisionResult, str, TokenUsageItem]:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "input_text", "text": prompt},
-                        {"type": "input_image", "image_url": _image_data_url(path)},
+                        {"type": "input_text", "text": load_prompt("vision_detection.txt")},
+                        _image_input(path, detail),
                     ],
                 }
             ],
@@ -253,7 +261,7 @@ def analyze_image(path: Path) -> tuple[VisionResult, str, TokenUsageItem]:
         raw = response.output_text
         usage = _usage_item("vision_detection", settings.vision_model, purpose, response.usage)
         return VisionResult.model_validate(json.loads(raw)), "openai", usage
-    except OpenAIError:
+    except (OpenAIError, json.JSONDecodeError, ValidationError, ValueError):
         return VisionResult(
             vehicle_context=(
                 f"Vision LLM detection failed for {path.name}. Analysis was skipped for this image "

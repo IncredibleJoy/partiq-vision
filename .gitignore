@@ -13,6 +13,8 @@ backend/.venv/
 # Build output
 dist/
 build/
+output/*
+!output/.gitkeep
 
 # Runtime storage and generated assets
 storage/
@@ -29,7 +31,6 @@ __pycache__/
 .coverage
 htmlcov/
 .playwright-cli/
-output/playwright/
 
 # Logs
 *.log

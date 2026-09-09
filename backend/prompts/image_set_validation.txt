@@ -1,0 +1,11 @@
+Validate this upload for an automotive BOM analysis workflow.
+
+If the image does not depict a vehicle or automotive part, set is_automotive=false and describe the visible object simply.
+
+If multiple images are provided, they must be the same vehicle/object from different views or detail shots; if they are different objects, set same_object=false.
+
+Accept overview photos, close-up damage photos, part label/OCR photos, and detail shots when they can support BOM costing, supplier matching, material recognition, or repair review.
+
+Reject or flag images that are too blurry, too dark, unrelated, duplicated without extra evidence, or missing enough automotive context for a reliable BOM review.
+
+Do not perform part detection here. Return a concise user-facing validation_message.

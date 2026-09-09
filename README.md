@@ -28,6 +28,17 @@ The backend is organized as an agent workflow in `backend/app/agents.py`:
 This keeps the application ready for later specialized agents: fitment matching, catalog lookup, cost-sheet generation, spare fastener/washer/oil/grease inference, and async job automation.
 
 See the full architecture diagrams in [`docs/architecture.md`](docs/architecture.md).
+See the BOM and reflection-agent improvement notes in [`docs/bom-reflection-agents.md`](docs/bom-reflection-agents.md).
+See the vision prompt notes in [`docs/vision-detection-prompt.md`](docs/vision-detection-prompt.md).
+
+## Project Structure
+
+```text
+backend/   FastAPI app, migrations, Python dependencies, backend container file
+frontend/  React/Vite app, Node dependencies, frontend container file
+docs/      Architecture and project documentation
+output/    Generated build/test/runtime output
+```
 
 ## Synthetic Parts Warehouse
 
@@ -84,8 +95,7 @@ Run the full stack:
 
 
 ```bash
-podman compose build
-podman compose up -d
+npm run app:restart
 ```
 
 The full stack runs:
@@ -94,12 +104,20 @@ The full stack runs:
 - API: `http://localhost:8000`
 - PostgreSQL/pgvector: `localhost:5433`
 
+Check the app status:
+
+```bash
+npm run app:status
+```
+
+For day-to-day use, prefer the `app:*` commands. They hide noisy Podman Compose container ids and show the app as one frontend, one backend, and one database.
+
 Backend startup runs Alembic migrations automatically before seeding synthetic warehouse data.
 
 Stop everything:
 
 ```bash
-podman compose down
+npm run app:down
 ```
 
 Reset database and uploaded files:
@@ -132,7 +150,7 @@ alembic revision -m "describe schema change"
 Frontend:
 
 ```bash
-npm install
+npm run install:frontend
 npm run dev
 ```
 
@@ -144,10 +162,10 @@ The `.gitignore` excludes secrets, dependency folders, build output, runtime upl
 
 - `backend/.env.example`
 - `backend/requirements.txt`
-- `package.json` and `package-lock.json`
+- `frontend/package.json` and `frontend/package-lock.json`
 - `docker-compose.yml`
-- `Containerfile.frontend` and `backend/Containerfile`
-- `src/`, `backend/app/`, and `README.md`
+- `frontend/Containerfile` and `backend/Containerfile`
+- `frontend/src/`, `backend/app/`, and `README.md`
 
 ## Real Vision LLM Mode
 

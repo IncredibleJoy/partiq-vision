@@ -34,6 +34,32 @@ class ImageSetValidation(BaseModel):
     validation_message: str
 
 
+class BomAssemblyComponent(BaseModel):
+    level: int = Field(ge=2)
+    part_name: str
+    quantity: int = Field(ge=1)
+    role: str
+    reason: str
+    included: bool = True
+    selected_warehouse_sku: str | None = None
+    warehouse_recommendations: list["BomWarehouseRecommendation"] = Field(default_factory=list)
+
+
+class BomWarehouseRecommendation(BaseModel):
+    sku: str
+    part_name: str
+    score: float = Field(ge=0, le=1)
+    reason: str
+    supplier: str
+    unit_cost: float
+    currency: str
+    stock_quantity: int
+    category: str
+    material: str
+    cluster_key: str
+    fitment_notes: str
+
+
 class BomItem(BaseModel):
     part_name: str
     category: str
@@ -45,10 +71,20 @@ class BomItem(BaseModel):
     crop_urls: list[str]
     source_images: list[str]
     notes: str
+    is_complete_assembly: bool = False
+    assembly_reason: str = ""
+    assembly_children: list[BomAssemblyComponent] = Field(default_factory=list)
+    included: bool = True
+    selected_warehouse_sku: str | None = None
+    warehouse_recommendations: list[BomWarehouseRecommendation] = Field(default_factory=list)
+    recommendation_reason: str = ""
 
 
 class CostSheetItem(BaseModel):
     detected_part_name: str
+    bom_level: int = Field(default=1, ge=1)
+    row_type: str = "level_1_part"
+    parent_detected_part_name: str | None = None
     matched_part_name: str
     matched_sku: str
     category: str
@@ -57,12 +93,19 @@ class CostSheetItem(BaseModel):
     cluster_key: str
     quantity: int
     unit_cost: float
+    parts_total_cost: float = 0
+    labor_required: bool = False
+    labor_hours: float = 0
+    labor_rate: float = 0
+    labor_cost: float = 0
+    labor_reason: str = ""
     total_cost: float
     currency: str
     stock_quantity: int
     match_confidence: float = Field(ge=0, le=1)
     fitment_notes: str
     consumables_required: list[str] = Field(default_factory=list)
+    level_2_items: list[BomAssemblyComponent] = Field(default_factory=list)
 
 
 class CostSheet(BaseModel):
@@ -114,6 +157,21 @@ class DetectionLabelUpdate(BaseModel):
 
 class RefineJobRequest(BaseModel):
     updates: list[DetectionLabelUpdate]
+
+
+class CostSheetRequest(BaseModel):
+    bom: list[BomItem]
+
+
+class WarehouseMatchRequest(BaseModel):
+    bom: list[BomItem]
+    strategy: str = "semantic_search"
+
+
+class WarehouseMatchResponse(BaseModel):
+    strategy: str
+    bom: list[BomItem]
+    cost_sheet: CostSheet
 
 
 class WarehousePart(BaseModel):

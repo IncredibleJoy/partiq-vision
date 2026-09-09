@@ -43,8 +43,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: Containerfile.frontend
+      context: ./frontend
+      dockerfile: Containerfile
     container_name: partiq-frontend
     environment:
       VITE_API_PROXY_TARGET: http://backend:8000

@@ -1,5 +1,9 @@
 # PartIQ Vision
 
+Browse the [backend](backend/), [frontend](frontend/), [architecture](docs/architecture.md) and [agent prompts](backend/prompts/README.md).
+
+[Repository structure and development guide](docs/repository-guide.md)
+
 Vision LLM powered BOM analysis for vehicle part detection, segmentation-style bounding boxes, part crop capture, confidence scoring, and consolidated multi-image BOM sheets.
 
 ## What This Prototype Includes
